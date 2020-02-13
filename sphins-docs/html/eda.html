@@ -1,0 +1,432 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Exploratory Data Analysis &#8212; LoanLendingClub 0.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Welcome to LoanLendingClub’s documentation!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="exploratory-data-analysis">
+<h1>Exploratory Data Analysis<a class="headerlink" href="#exploratory-data-analysis" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The objective is to use the loan data to build a model that can predict the loan status (whether or not a loan will be fully paid or charged off) and interpret the results to find the factors which affect the result. Such a predictive model could help LendingClub investors make better-informed investment decisions.</p>
+<p>We want to develop a model that is <strong>accurate</strong> and <strong>interpretable</strong>.</p>
+<p>This problem is a binary classification as I have only two classes to predict.</p>
+</div>
+<div class="section" id="data">
+<h2>Data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h2>
+<p>In this project, I will work with the publicly available Lending Club data on [Kaggle](<a class="reference external" href="https://www.kaggle.com/wordsforthewise/lending-club">https://www.kaggle.com/wordsforthewise/lending-club</a>).
+The dataset is 1.8+ GB of size, including 1.6 millions of loans from 2007 to 2017Q, each of which has 150 associated features.</p>
+<p>The dataset has numerical, categorical and missing values. Because there are so many features (150+), i will start the data engineering with dropping unnecessary features and then deal with the remaining features more in detail.</p>
+</div>
+<div class="section" id="target-variable">
+<h2>Target Variable<a class="headerlink" href="#target-variable" title="Permalink to this headline">¶</a></h2>
+<p>We are trying to predict the loan_status column. Let’s check the value distributions in this column first:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Fully</span> <span class="n">Paid</span>                                             <span class="mi">53872</span>
+<span class="n">Current</span>                                                <span class="mi">43839</span>
+<span class="n">Charged</span> <span class="n">Off</span>                                            <span class="mi">13406</span>
+<span class="n">Late</span> <span class="p">(</span><span class="mi">31</span><span class="o">-</span><span class="mi">120</span> <span class="n">days</span><span class="p">)</span>                                      <span class="mi">1087</span>
+<span class="n">In</span> <span class="n">Grace</span> <span class="n">Period</span>                                          <span class="mi">435</span>
+<span class="n">Late</span> <span class="p">(</span><span class="mi">16</span><span class="o">-</span><span class="mi">30</span> <span class="n">days</span><span class="p">)</span>                                        <span class="mi">229</span>
+<span class="n">Does</span> <span class="ow">not</span> <span class="n">meet</span> <span class="n">the</span> <span class="n">credit</span> <span class="n">policy</span><span class="o">.</span> <span class="n">Status</span><span class="p">:</span><span class="n">Fully</span> <span class="n">Paid</span>       <span class="mi">116</span>
+<span class="n">Does</span> <span class="ow">not</span> <span class="n">meet</span> <span class="n">the</span> <span class="n">credit</span> <span class="n">policy</span><span class="o">.</span> <span class="n">Status</span><span class="p">:</span><span class="n">Charged</span> <span class="n">Off</span>       <span class="mi">49</span>
+<span class="n">Default</span>                                                    <span class="mi">1</span>
+<span class="n">Name</span><span class="p">:</span> <span class="n">loan_status</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">int64</span>
+</pre></div>
+</div>
+<p>We will try to distinguish 2 cases: loans being fully paid or charged off, assuming that they both meet the credit policy.
+We will only keep the rows with loan_status being “fully paid” or “charged off”.</p>
+<p>About 80% (~647k) of the loans have been fully paid, and 21% (168k) have been charged off. Unbalanced data. I will try to handle this unbalance in the cross validation and need to pick appropriate metrics.</p>
+</div>
+<div class="section" id="feature-selection">
+<h2>Feature Selection<a class="headerlink" href="#feature-selection" title="Permalink to this headline">¶</a></h2>
+<p>&lt;a id=”featureselection”&gt;&lt;/a&gt;
+The raw data has 150 features, but not all of them are useful.
+Definitions of the columns are given in the Lending Club “Data Dictionary” [available here](<a class="reference external" href="https://www.lendingclub.com/info/download-data.action">https://www.lendingclub.com/info/download-data.action</a>).</p>
+<dl class="simple">
+<dt>I will drop the features with the following criteria:</dt><dd><ul class="simple">
+<li><p>More than 50% of the data is missing</p></li>
+<li><p>The feature would not have been available at the time of the loan application (“issue_d”).</p></li>
+</ul>
+</dd>
+<dt>I will also address the following:</dt><dd><ul class="simple">
+<li><p>convert strings to numerical values</p></li>
+<li><p>drop superfluous attributes</p></li>
+<li><p>highly correlated predictors</p></li>
+</ul>
+</dd>
+</dl>
+<div class="section" id="drop-features-missing-too-much-data">
+<h3>Drop features missing too much data<a class="headerlink" href="#drop-features-missing-too-much-data" title="Permalink to this headline">¶</a></h3>
+<p>&lt;a id=”missing_data”&gt;&lt;/a&gt;
+From this table, we can see that there is a huge gap between features missing some data (~15% and below) and those missing lots of data (up to 100%!). I chose 50% as the cutoff.</p>
+</div>
+<div class="section" id="remove-cheat-data">
+<h3>Remove “cheat” data<a class="headerlink" href="#remove-cheat-data" title="Permalink to this headline">¶</a></h3>
+<p>&lt;a id=”cheat_data”&gt;&lt;/a&gt;
+The goal of this project is to predict whether a loan will be paid off BEFORE making the decision to lend the loan. Therefore, I would like to remove the features that were unavailable before lending a loan:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="s1">&#39;acc_now_delinq&#39;</span><span class="p">,</span> <span class="s1">&#39;acc_open_past_24mths&#39;</span><span class="p">,</span> <span class="s1">&#39;addr_state&#39;</span><span class="p">,</span> <span class="s1">&#39;annual_inc&#39;</span><span class="p">,</span> <span class="s1">&#39;application_type&#39;</span><span class="p">,</span>
+<span class="s1">&#39;avg_cur_bal&#39;</span><span class="p">,</span> <span class="s1">&#39;bc_open_to_buy&#39;</span><span class="p">,</span> <span class="s1">&#39;bc_util&#39;</span><span class="p">,</span> <span class="s1">&#39;chargeoff_within_12_mths&#39;</span><span class="p">,</span>
+<span class="s1">&#39;collection_recovery_fee&#39;</span><span class="p">,</span> <span class="s1">&#39;collections_12_mths_ex_med&#39;</span><span class="p">,</span> <span class="s1">&#39;debt_settlement_flag&#39;</span><span class="p">,</span>
+<span class="s1">&#39;delinq_2yrs&#39;</span><span class="p">,</span> <span class="s1">&#39;delinq_amnt&#39;</span><span class="p">,</span> <span class="s1">&#39;disbursement_method&#39;</span><span class="p">,</span> <span class="s1">&#39;dti&#39;</span><span class="p">,</span> <span class="s1">&#39;earliest_cr_line&#39;</span><span class="p">,</span>
+<span class="s1">&#39;emp_length&#39;</span><span class="p">,</span> <span class="s1">&#39;emp_title&#39;</span><span class="p">,</span> <span class="s1">&#39;fico_range_high&#39;</span><span class="p">,</span> <span class="s1">&#39;fico_range_low&#39;</span><span class="p">,</span> <span class="s1">&#39;funded_amnt&#39;</span><span class="p">,</span>
+<span class="s1">&#39;funded_amnt_inv&#39;</span><span class="p">,</span> <span class="s1">&#39;grade&#39;</span><span class="p">,</span> <span class="s1">&#39;hardship_flag&#39;</span><span class="p">,</span> <span class="s1">&#39;home_ownership&#39;</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;initial_list_status&#39;</span><span class="p">,</span>
+<span class="s1">&#39;inq_last_6mths&#39;</span><span class="p">,</span> <span class="s1">&#39;installment&#39;</span><span class="p">,</span> <span class="s1">&#39;int_rate&#39;</span><span class="p">,</span> <span class="s1">&#39;issue_d&#39;</span><span class="p">,</span> <span class="s1">&#39;last_credit_pull_d&#39;</span><span class="p">,</span>
+<span class="s1">&#39;last_fico_range_high&#39;</span><span class="p">,</span> <span class="s1">&#39;last_fico_range_low&#39;</span><span class="p">,</span> <span class="s1">&#39;last_pymnt_amnt&#39;</span><span class="p">,</span> <span class="s1">&#39;last_pymnt_d&#39;</span><span class="p">,</span>
+<span class="s1">&#39;loan_amnt&#39;</span><span class="p">,</span> <span class="s1">&#39;loan_status&#39;</span><span class="p">,</span> <span class="s1">&#39;mo_sin_old_il_acct&#39;</span><span class="p">,</span> <span class="s1">&#39;mo_sin_old_rev_tl_op&#39;</span><span class="p">,</span>
+<span class="s1">&#39;mo_sin_rcnt_rev_tl_op&#39;</span><span class="p">,</span> <span class="s1">&#39;mo_sin_rcnt_tl&#39;</span><span class="p">,</span> <span class="s1">&#39;mort_acc&#39;</span><span class="p">,</span> <span class="s1">&#39;mths_since_recent_bc&#39;</span><span class="p">,</span>
+<span class="s1">&#39;mths_since_recent_inq&#39;</span><span class="p">,</span> <span class="s1">&#39;num_accts_ever_120_pd&#39;</span><span class="p">,</span> <span class="s1">&#39;num_actv_bc_tl&#39;</span><span class="p">,</span>
+<span class="s1">&#39;num_actv_rev_tl&#39;</span><span class="p">,</span> <span class="s1">&#39;num_bc_sats&#39;</span><span class="p">,</span> <span class="s1">&#39;num_bc_tl&#39;</span><span class="p">,</span> <span class="s1">&#39;num_il_tl&#39;</span><span class="p">,</span> <span class="s1">&#39;num_op_rev_tl&#39;</span><span class="p">,</span>
+<span class="s1">&#39;num_rev_accts&#39;</span><span class="p">,</span> <span class="s1">&#39;num_rev_tl_bal_gt_0&#39;</span><span class="p">,</span> <span class="s1">&#39;num_sats&#39;</span><span class="p">,</span> <span class="s1">&#39;num_tl_120dpd_2m&#39;</span><span class="p">,</span> <span class="s1">&#39;num_tl_30dpd&#39;</span><span class="p">,</span>
+<span class="s1">&#39;num_tl_90g_dpd_24m&#39;</span><span class="p">,</span> <span class="s1">&#39;num_tl_op_past_12m&#39;</span><span class="p">,</span> <span class="s1">&#39;open_acc&#39;</span><span class="p">,</span> <span class="s1">&#39;out_prncp&#39;</span><span class="p">,</span> <span class="s1">&#39;out_prncp_inv&#39;</span><span class="p">,</span>
+<span class="s1">&#39;pct_tl_nvr_dlq&#39;</span><span class="p">,</span> <span class="s1">&#39;percent_bc_gt_75&#39;</span><span class="p">,</span> <span class="s1">&#39;policy_code&#39;</span><span class="p">,</span> <span class="s1">&#39;pub_rec&#39;</span><span class="p">,</span> <span class="s1">&#39;pub_rec_bankruptcies&#39;</span><span class="p">,</span>
+<span class="s1">&#39;purpose&#39;</span><span class="p">,</span> <span class="s1">&#39;pymnt_plan&#39;</span><span class="p">,</span> <span class="s1">&#39;recoveries&#39;</span><span class="p">,</span> <span class="s1">&#39;revol_bal&#39;</span><span class="p">,</span> <span class="s1">&#39;revol_util&#39;</span><span class="p">,</span> <span class="s1">&#39;sub_grade&#39;</span><span class="p">,</span>
+<span class="s1">&#39;tax_liens&#39;</span><span class="p">,</span> <span class="s1">&#39;term&#39;</span><span class="p">,</span> <span class="s1">&#39;title&#39;</span><span class="p">,</span> <span class="s1">&#39;tot_coll_amt&#39;</span><span class="p">,</span> <span class="s1">&#39;tot_cur_bal&#39;</span><span class="p">,</span> <span class="s1">&#39;tot_hi_cred_lim&#39;</span><span class="p">,</span>
+<span class="s1">&#39;total_acc&#39;</span><span class="p">,</span> <span class="s1">&#39;total_bal_ex_mort&#39;</span><span class="p">,</span> <span class="s1">&#39;total_bc_limit&#39;</span><span class="p">,</span> <span class="s1">&#39;total_il_high_credit_limit&#39;</span><span class="p">,</span>
+<span class="s1">&#39;total_pymnt&#39;</span><span class="p">,</span> <span class="s1">&#39;total_pymnt_inv&#39;</span><span class="p">,</span> <span class="s1">&#39;total_rec_int&#39;</span><span class="p">,</span> <span class="s1">&#39;total_rec_late_fee&#39;</span><span class="p">,</span>
+<span class="s1">&#39;total_rec_prncp&#39;</span><span class="p">,</span> <span class="s1">&#39;total_rev_hi_lim&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">,</span> <span class="s1">&#39;verification_status&#39;</span><span class="p">,</span> <span class="s1">&#39;zip_code&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>After checking the definition of these features, I will drop the ones that would have not been available before a load was lend:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="s1">&#39;addr_state&#39;</span><span class="p">,</span> <span class="s1">&#39;annual_inc&#39;</span><span class="p">,</span> <span class="s1">&#39;application_type&#39;</span><span class="p">,</span> <span class="s1">&#39;dti&#39;</span><span class="p">,</span> <span class="s1">&#39;earliest_cr_line&#39;</span><span class="p">,</span> <span class="s1">&#39;emp_length&#39;</span><span class="p">,</span>
+<span class="s1">&#39;emp_title&#39;</span><span class="p">,</span> <span class="s1">&#39;fico_range_high&#39;</span><span class="p">,</span> <span class="s1">&#39;fico_range_low&#39;</span><span class="p">,</span> <span class="s1">&#39;grade&#39;</span><span class="p">,</span> <span class="s1">&#39;home_ownership&#39;</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">,</span>
+<span class="s1">&#39;initial_list_status&#39;</span><span class="p">,</span> <span class="s1">&#39;installment&#39;</span><span class="p">,</span> <span class="s1">&#39;int_rate&#39;</span><span class="p">,</span> <span class="s1">&#39;issue_d&#39;</span><span class="p">,</span> <span class="s1">&#39;loan_amnt&#39;</span><span class="p">,</span> <span class="s1">&#39;loan_status&#39;</span><span class="p">,</span>
+<span class="s1">&#39;mo_sin_old_il_acct&#39;</span><span class="p">,</span> <span class="s1">&#39;mo_sin_old_rev_tl_op&#39;</span><span class="p">,</span> <span class="s1">&#39;mort_acc&#39;</span><span class="p">,</span> <span class="s1">&#39;open_acc&#39;</span><span class="p">,</span> <span class="s1">&#39;policy_code&#39;</span><span class="p">,</span>
+<span class="s1">&#39;pub_rec&#39;</span><span class="p">,</span> <span class="s1">&#39;pub_rec_bankruptcies&#39;</span><span class="p">,</span> <span class="s1">&#39;purpose&#39;</span><span class="p">,</span> <span class="s1">&#39;revol_bal&#39;</span><span class="p">,</span> <span class="s1">&#39;revol_util&#39;</span><span class="p">,</span> <span class="s1">&#39;sub_grade&#39;</span><span class="p">,</span>
+<span class="s1">&#39;term&#39;</span><span class="p">,</span> <span class="s1">&#39;title&#39;</span><span class="p">,</span> <span class="s1">&#39;total_acc&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">,</span> <span class="s1">&#39;verification_status&#39;</span><span class="p">,</span> <span class="s1">&#39;zip_code&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="inspect-the-remaining-features-one-by-one">
+<h3>Inspect the remaining features one by one<a class="headerlink" href="#inspect-the-remaining-features-one-by-one" title="Permalink to this headline">¶</a></h3>
+<p>&lt;a id=”inspect”&gt;&lt;/a&gt;
+Now we are left with reasonable number of features (34), I will screen each feature and decide if a feature should be dropped.</p>
+<p>The tasks involved are:
+- Visualization with count distributions, bar plot &amp; KDE plot with faceting on the loan status
+- Drop useless features (e.g., “id”)
+- Cleaning &amp; Formatting (e.g., [“emp_length”](#emp_length), [“earliest_cr_line”](#earliest_cr_line))
+- Transformation of features (e.g., log transformation of [“annual_inc”](#annual_inc), average of [“fico_score”](#fico))
+- Pick the most relevant features in the data (e.g., “sub_grade” vs “grade”, “zip_code” vs “addr_state”)</p>
+</div>
+<div class="section" id="issue-d">
+<h3>issue_d<a class="headerlink" href="#issue-d" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The month which the loan was funded.</p>
+<p>Because we are only using the variables that are available before the loan was funded to make predictions, issue_d will not be included in modeling. This feature is kept here for train/test sample split, after which this feature will be dropped.</p>
+</div>
+<div class="section" id="id">
+<h3>id<a class="headerlink" href="#id" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “A unique assigned ID for the loan listing.”</p>
+<p>“id” is a unique index. It’s not useful as a categorical variable (so many unique values), nor as a numerical variable (a wild range of its values). Therefore I will drop this feature.</p>
+</div>
+<div class="section" id="loan-amnt">
+<h3>loan_amnt<a class="headerlink" href="#loan-amnt" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The listed amount of the loan applied for by the borrower. If at some point in time, the credit department reduces the loan amount, then it will be reflected in this value.”</p>
+<p>“loan_amnt” ranges from $0.5 k to $40 k, with a median of 12k.</p>
+<img alt="_images/01loan_amnt.png" src="_images/01loan_amnt.png" />
+<img alt="_images/02loan_amnt.png" src="_images/02loan_amnt.png" />
+<p>“Charged off” loans seem to have higher loan amount. I will further examine the statistical difference in the later analysis.</p>
+</div>
+<div class="section" id="term">
+<h3>term<a class="headerlink" href="#term" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The number of payments on the loan. Values are in months and can be either 36 or 60.”</p>
+<img alt="_images/01term.png" src="_images/01term.png" />
+<img alt="_images/02term.png" src="_images/02term.png" />
+<p>About 76% of the loans are 36 months and the rest are 60 months. The latter tends to have lower fraction of being fully paid.</p>
+<p>Compare the charge-off rate by loan period</p>
+<p>17% of the 36-month loans are charge off, while 33% of the 60-month are charged off. Longer term leads to higher charged off? This feature should be useful in modeling.</p>
+</div>
+<div class="section" id="int-rate">
+<h3>int_rate<a class="headerlink" href="#int-rate" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “Interest Rate on the loan.”</p>
+<p>The interest rage ranges from 5% to 31%, with a median at 13%.</p>
+<img alt="_images/01int_rate.png" src="_images/01int_rate.png" />
+<img alt="_images/02int_rate.png" src="_images/02int_rate.png" />
+<p>The higher the interest rate is, the more likely for being charged off.
+There are some outliers in the Fully Paid dataset. Let’s take a look at them, as outliers may distort ML analysis.</p>
+</div>
+<div class="section" id="outlieres">
+<h3>Outlieres<a class="headerlink" href="#outlieres" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>outliers can be exactly what we want to learn about, e.g., anomaly detection.</p></li>
+<li><p>In this project, however, outliers may distort the picture of the data in both statistical analysis and visualization.</p></li>
+<li><p>Below, I use the modified Z-score method and the IQR method. Note that the variable must be continuous, not categorical, for any of these functions to make sense.</p></li>
+</ul>
+<p>Any values &gt; 75% percentile (18.5 for “charged off”, 15.61 for “Fully Paid”) are defined as outliers.</p>
+<p>The percentage of outliers is roughly the same for the Fully Paid/Charged off data, ~23%. A bit too much to be dropped. I will keep these outliers for now.</p>
+</div>
+<div class="section" id="installment">
+<h3>installment<a class="headerlink" href="#installment" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The monthly payment owed by the borrower if the loan originates.”</p>
+<p>Installments range from $5  to $1715, with a median at $377.</p>
+<img alt="_images/01installment.png" src="_images/01installment.png" />
+<img alt="_images/02installment.png" src="_images/02installment.png" />
+<p>Charged-off loans tend to have higher installments but the difference of the mean values is very small (460 vs 431). Later, I will do a KS test to see if there are any statistical difference of “installment” between Fully Paid/charged off.</p>
+</div>
+<div class="section" id="grade-sub-grade">
+<h3>grade, sub_grade<a class="headerlink" href="#grade-sub-grade" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary for grade: “assigned loan grade.”
+Data Dictionary for sub_grade: “LC assigned loan subgrade.”</p>
+<p>What are the possible values of grade and sub_grade?</p>
+<img alt="_images/01sub_grade.png" src="_images/01sub_grade.png" />
+<img alt="_images/02sub_grade.png" src="_images/02sub_grade.png" />
+<img alt="_images/01grade.png" src="_images/01grade.png" />
+<img alt="_images/02grade.png" src="_images/02grade.png" />
+<p>There is a trend of higher fraction of loans Charged off as the grade going from A to G, with some small variations among subgrades.</p>
+</div>
+<div class="section" id="emp-title">
+<h3>emp_title<a class="headerlink" href="#emp-title" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The job title supplied by the Borrower when applying for the loan.”</p>
+<p>There are too many unique titles for this feature to be useful, so we drop this feature.</p>
+</div>
+<div class="section" id="emp-length">
+<h3>emp_length<a class="headerlink" href="#emp-length" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “Employment length in years. Possible values are between 0 and 10 where 0 means less than one year and 10 means ten or more years.” The actual data does not match this description:</p>
+<p>There are 42k loans without the information on emp_length. Convert this feature to integers.</p>
+<img alt="_images/01emp_length.png" src="_images/01emp_length.png" />
+<img alt="_images/02emp_length.png" src="_images/02emp_length.png" />
+<p>One third of the loans go to the people with longer than 10 years of employments. However, the fully paid rate seems not quite related to this feature. Again, this will be further examined in a statistical test at the end.</p>
+</div>
+<div class="section" id="home-ownership">
+<h3>home_ownership<a class="headerlink" href="#home-ownership" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The home ownership status provided by the borrower during registration or obtained from the credit report. Our values are: RENT, OWN, MORTGAGE, OTHER.”</p>
+<p>Replace “ANY” &amp; “None” with “OTHER”.</p>
+<img alt="_images/01home_ownership.png" src="_images/01home_ownership.png" />
+<img alt="_images/02home_ownership.png" src="_images/02home_ownership.png" />
+<p>There appear to be small differences in charge-off rates by home ownership status. Mortgage &amp; OTHER has slightly less probability of Charged-Off. Because of the large numbers of observations in each category, these differences might be statistically significant.</p>
+</div>
+<div class="section" id="annual-inc">
+<h3>annual_inc<a class="headerlink" href="#annual-inc" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The self-reported annual income provided by the borrower during registration.”</p>
+<p>Annual income ranges from $0 to $8M, with a median at $65k, which doubles the national median individual income in the US ($40k for males and $25k for females). Due to the large range of variation, we log-transform the values.</p>
+<img alt="_images/01annual_inc.png" src="_images/01annual_inc.png" />
+<img alt="_images/02annual_inc.png" src="_images/02annual_inc.png" />
+<p>Let’s look closer of the difference here; For both cases, there are quite a few outliers (in the lower end).</p>
+</div>
+<div class="section" id="verification-status">
+<h3>verification_status<a class="headerlink" href="#verification-status" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “Indicates if income was verified by [Lending Club], not verified, or if the income source was verified.”</p>
+<img alt="_images/01verification_status.png" src="_images/01verification_status.png" />
+<img alt="_images/02verification_status.png" src="_images/02verification_status.png" />
+<p>Surprisingly, verified loans have higher chance of being charged-Off. I would guess the opposite way.</p>
+</div>
+<div class="section" id="purpose">
+<h3>purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “A category provided by the borrower for the loan request.”</p>
+<p>Now let’s check the charged-off rates of purposes: We see that, 30% of the loans for small_business are charged off, but only 12% of wedding are charged Off.</p>
+</div>
+<div class="section" id="title">
+<h3>title<a class="headerlink" href="#title" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The loan title provided by the borrower.”</p>
+<p>There are 12 unique purposes in the dataset, and from the top 10 titles, it seems that this information is covered in the “purpose”. So we drop this column.</p>
+</div>
+<div class="section" id="zip-code-addr-stat">
+<h3>zip_code, addr_stat<a class="headerlink" href="#zip-code-addr-stat" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary for zip_code: “The first 3 numbers of the zip code provided by the borrower in the loan application.”
+Data Dictionary for addr_state: “The state provided by the borrower in the loan application.”</p>
+<p>There are many unique “zip_code” values, and the zip_code info should be equivalent to “addr_stat”. Therefore we drop the “zip_code”.</p>
+<p>MS has the highest fraction of Charged Off (0.28), whereas DC has the lowest fraction at 0.13.</p>
+</div>
+<div class="section" id="dti">
+<h3>dti<a class="headerlink" href="#dti" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “A ratio calculated using the borrower’s total monthly debt payments on the total debt obligations, excluding mortgage and the requested LC loan, divided by the borrower’s self-reported monthly income.”</p>
+<p>The values of -1 or 999 are probably outliers. Let’s look at its histogram .</p>
+<img alt="_images/dti.png" src="_images/dti.png" />
+<p>Very few (0.01%) outliers with dti &gt; 60.
+From the figure it seems that the Charged Off loans have higher DTI. Let’s check.</p>
+<p>It’s clear that borrowers who have higher DTI are more likely to be charged off</p>
+</div>
+<div class="section" id="open-acc">
+<h3>open_acc<a class="headerlink" href="#open-acc" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The number of open credit lines in the borrower’s credit file.”</p>
+<img alt="_images/01open_acc.png" src="_images/01open_acc.png" />
+<img alt="_images/02open_acc.png" src="_images/02open_acc.png" />
+<p>There seems no significant difference in number of credit lines between fully paid loans and charged-off loans.</p>
+</div>
+<div class="section" id="earliest-cr-line">
+<h3>earliest_cr_line<a class="headerlink" href="#earliest-cr-line" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “The month the borrower’s earliest reported credit line was opened.”</p>
+<p>Rather than converting it to a date, I will use a scalar to describe the length of time since the first line of credit. If all other variables are held equal, the longer you have had lines of credit the better.</p>
+<img alt="_images/01earliest_cr_line.png" src="_images/01earliest_cr_line.png" />
+<img alt="_images/02earliest_cr_line.png" src="_images/02earliest_cr_line.png" />
+<p>Borrowers who charged off have opened their first credit line more recently, although their medians are almost the same.</p>
+</div>
+<div class="section" id="fico-range-low-fico-range-high">
+<h3>fico_range_low, fico_range_high<a class="headerlink" href="#fico-range-low-fico-range-high" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary for fico_range_low: “The lower boundary range the borrower’s FICO at loan origination belongs to.”
+Data Dictionary for fico_range_high: “The upper boundary range the borrower’s FICO at loan origination belongs to.”</p>
+<p>Check the correlation between the two: These two are highly correlated, therefore we only need to keep one. We create a new feature, “fico_score” which is the mean value of the “fico_range_low” and “fico_range_high”</p>
+<img alt="_images/01fico_score.png" src="_images/01fico_score.png" />
+<img alt="_images/02fico_score.png" src="_images/02fico_score.png" />
+<p>There is noticeable difference in FICO scores between fully paid and charged-off loans.</p>
+<p><strong>A Thought:</strong> As FICO score itself stands out as an overall important factor. I would like to check the most significant contributors (acct number, earliest credit card, and the ratio of total monthly debt payments on the total debt obligations) to the FICO score, based on my own knowledge.</p>
+<img alt="_images/fico_score.png" src="_images/fico_score.png" />
+<p>It seems that the higher the fico_score is, the lower the int_rate. Let’s take a look at their correlations.</p>
+<img alt="_images/sns.png" src="_images/sns.png" />
+<p>short-term loans have higher “fico_score” especially at lower “int_rate”. I will explore the correlations between variables in the later analysis.</p>
+</div>
+<div class="section" id="pub-rec">
+<h3>pub_rec<a class="headerlink" href="#pub-rec" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “Number of derogatory public records.”</p>
+<img alt="_images/01pub_rec.png" src="_images/01pub_rec.png" />
+<img alt="_images/02pub_rec.png" src="_images/02pub_rec.png" />
+<p>“pub_rec” &gt; 11 have significant of Charged-Off rate. However, it’s affected by low-counts. If we look at the overall statistics, the mean difference in “pub_Rec” is just 0.04 for fully paid/charged Off</p>
+<p>What if we group the few bins with lower values together into 1 bin?</p>
+<img alt="_images/01pub_rec02.png" src="_images/01pub_rec02.png" />
+<img alt="_images/02pub_rec02.png" src="_images/02pub_rec02.png" />
+<p>After grouping, it is clear that: pub_rec are mostly 0 &amp; 1; pub_rec with 1 and higher have higher chance of being charged off than pub_rec of 0.</p>
+</div>
+<div class="section" id="pub-rec-bankruptcies">
+<h3>pub_rec_bankruptcies<a class="headerlink" href="#pub-rec-bankruptcies" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “Number of public record bankruptcies.”</p>
+<img alt="_images/01pub_rec_bankruptcies.png" src="_images/01pub_rec_bankruptcies.png" />
+<img alt="_images/02pub_rec_bankruptcies.png" src="_images/02pub_rec_bankruptcies.png" />
+<p>“pub_rec” and “pub_rec_bankruptcies” are highly correlated. could only feed one of them into the modeling.</p>
+</div>
+<div class="section" id="revol-bal">
+<h3>revol_bal<a class="headerlink" href="#revol-bal" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “Total credit revolving balance.”</p>
+<img alt="_images/01revol_bal.png" src="_images/01revol_bal.png" />
+<img alt="_images/02revol_bal.png" src="_images/02revol_bal.png" />
+</div>
+<div class="section" id="revol-util">
+<h3>revol_util<a class="headerlink" href="#revol-util" title="Permalink to this headline">¶</a></h3>
+<p>Data Dictionary: “Revolving line utilization rate, or the amount of credit the borrower is using relative to all available revolving credit.”</p>
+<img alt="_images/01revol_util.png" src="_images/01revol_util.png" />
+<img alt="_images/02revol_util.png" src="_images/02revol_util.png" />
+<p>Charged Off loans tend to have higher revol_util.</p>
+</div>
+</div>
+</div>
+<div class="section" id="optimal-pipeline">
+<h1>Optimal Pipeline<a class="headerlink" href="#optimal-pipeline" title="Permalink to this headline">¶</a></h1>
+<p>We used <a class="reference external" href="https://sksurrogate.readthedocs.io/en/latest/">SKSurrogate</a>, to find an optimal pipeline that maximizez the accuracy of predictions.
+The following pipeline was selected based on an evolutionary optimization algorithm and surrogate search:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Pipeline</span><span class="p">(</span><span class="n">memory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+     <span class="n">steps</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;stp_0&#39;</span><span class="p">,</span>
+             <span class="n">StackingEstimator</span><span class="p">(</span><span class="n">decision</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                               <span class="n">estimator</span><span class="o">=</span><span class="n">GaussianNB</span><span class="p">(</span><span class="n">priors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                                    <span class="n">var_smoothing</span><span class="o">=</span><span class="mf">0.05435651423983356</span><span class="p">),</span>
+                               <span class="n">probs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">res</span><span class="o">=</span><span class="kc">True</span><span class="p">)),</span>
+            <span class="p">(</span><span class="s1">&#39;stp_1&#39;</span><span class="p">,</span>
+             <span class="n">LGBMClassifier</span><span class="p">(</span><span class="n">boosting_type</span><span class="o">=</span><span class="s1">&#39;gbdt&#39;</span><span class="p">,</span> <span class="n">class_weight</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                            <span class="n">colsample_bytree</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">importance_type</span><span class="o">=</span><span class="s1">&#39;split&#39;</span><span class="p">,</span>
+                            <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.10330688094152427</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="n">min_child_samples</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">min_child_weight</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span>
+                            <span class="n">min_split_gain</span><span class="o">=</span><span class="mf">0.02336652134254079</span><span class="p">,</span>
+                            <span class="n">n_estimators</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_leaves</span><span class="o">=</span><span class="mi">18</span><span class="p">,</span>
+                            <span class="n">objective</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                            <span class="n">reg_alpha</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">reg_lambda</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                            <span class="n">subsample</span><span class="o">=</span><span class="mf">1e-06</span><span class="p">,</span> <span class="n">subsample_for_bin</span><span class="o">=</span><span class="mi">200000</span><span class="p">,</span>
+                            <span class="n">subsample_freq</span><span class="o">=</span><span class="mi">0</span><span class="p">))],</span>
+     <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The following shows some performance measures for the pipeline:</p>
+<img alt="_images/acc.png" src="_images/acc.png" />
+<img alt="_images/roc.png" src="_images/roc.png" />
+<img alt="_images/cal.png" src="_images/cal.png" />
+<p>The solid learning curves are assuring the stability of the model.</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">LoanLendingClub</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Exploratory Data Analysis</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#data">Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#target-variable">Target Variable</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#feature-selection">Feature Selection</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#optimal-pipeline">Optimal Pipeline</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to LoanLendingClub’s documentation!</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Abbas Malekpour.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/eda.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
