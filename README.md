@@ -1,6 +1,6 @@
 # Predicting-Default-Clients-of-Lending-Club-Loans
 **Results**:
-Please check out the jupyter notebook of the project [here](https://github.com/abbasmalekpour/Lending-Club-Loans-Charged-off-detection/blob/master/LoanLendingClub_Charged_off-Detection.ipynb). If you experience loading problems (as it is a big file), please take a look of a markdown copy of the project [here](https://github.com/abbasmalekpour)
+Please check out the jupyter notebook of the project [here](https://github.com/abbasmalekpour/Lending-Club-Loans-Charged-off-detection/blob/master/LoanLendingClub_Charged_off-Detection.ipynb). If you experience loading problems (as it is a big file), please take a look of a fraction copy of the project [here](https://github.com/abbasmalekpour)
 
 **Description**:
 In this project, I worked with the public LendingClub data, with a size of ~1.8 GB, containing 2.2 millions of loans from 2007 to 2018, each of which has 150 associated features. My goal was to build a predictive model that can predict whether or not a loan will be fully paid or charged off, in order to minimize the risks of loan defaults for the company. I also would like to find the most important factors in making decisions about lending.
